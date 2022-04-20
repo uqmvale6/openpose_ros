@@ -48,9 +48,30 @@ OpenPoseROS::OpenPoseROS(int argc, char** argv) {
 }
 
 
+bool OpenPoseROS::ok() {
+    return ros::ok();
+}
+
+void OpenPoseROS::loop() {
+    ros::spinOnce();
+    if (img.data == NULL) {
+        return;
+    }
+    const cv::Mat cvImageToProcess = img.clone();
+    const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(cvImageToProcess);
+    auto datumProcessed = opWrapper.emplaceAndPop(imageToProcess);
+
+    cvMat = OP_OP2CVCONSTMAT(datumProcessed->at(0)->cvOutputData);
+    poseKeypoints = datumProcessed->at(0)->poseKeypoints;
+    cv::imshow("Output", cvMat);
+    cv::waitKey(1);
+}
+
+void OpenPoseROS::start() {
+    opWrapper.start();
+}
 
 void OpenPoseROS::init() {
-    op::Wrapper opWrapper{op::ThreadManagerMode::Asynchronous};
     
     const auto outputSize = op::flagsToPoint(op::String(FLAGS_output_resolution), "-1x-1");
     const auto netInputSize = op::flagsToPoint(op::String(FLAGS_net_resolution), "-1x160");
@@ -71,7 +92,8 @@ void OpenPoseROS::init() {
         poseMode,
         netInputSize,
         FLAGS_net_resolution_dynamic,
-        outputSize, keypointScaleMode,
+        outputSize,
+        keypointScaleMode,
         FLAGS_num_gpu,
         FLAGS_num_gpu_start,
         FLAGS_scale_number,
@@ -96,31 +118,14 @@ void OpenPoseROS::init() {
     };
 
     opWrapper.configure(wrapperStructPose);
-    ros::NodeHandle nh_image;
-    image_transport::ImageTransport it_image(nh_image);
-    
+
+    it_image = std::make_unique<image_transport::ImageTransport>(ros::NodeHandle());
     image_transport::TransportHints hints;
     if (compressed) {
         hints = image_transport::TransportHints("compressed");
     } else {
         hints = image_transport::TransportHints("raw");
     }
-    image_transport::Subscriber sub_image = it_image.subscribe(image_topic, 1, image_callback, ros::VoidPtr(), hints);
-    opWrapper.start();
-    while (ros::ok()) {
-        ros::spinOnce();
-        if (img.data == NULL) {
-            continue;
-        }
-        const cv::Mat cvImageToProcess = img.clone();
-        const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(cvImageToProcess);
-        auto datumProcessed = opWrapper.emplaceAndPop(imageToProcess);
-        const cv::Mat cvMat = OP_OP2CVCONSTMAT(datumProcessed->at(0)->cvOutputData);
-        auto poseKeypoints = datumProcessed->at(0)->poseKeypoints;
-        const auto numberPeopleDetected = poseKeypoints.getSize(0);
-        const auto numberBodyParts = poseKeypoints.getSize(1);
-        cv::imshow("Output", cvMat);
-        cv::waitKey(1);
-    }
+    sub_image = it_image->subscribe(image_topic, 1, image_callback, ros::VoidPtr(), hints);
 }
 

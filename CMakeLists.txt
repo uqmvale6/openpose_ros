@@ -29,6 +29,7 @@ catkin_package(
   CATKIN_DEPENDS roscpp rospy std_msgs
 )
 
+pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 include_directories(
 	include
   ${catkin_INCLUDE_DIRS}
@@ -37,13 +38,14 @@ include_directories(
 include_directories(
     ${OpenPose_INCLUDE_DIRS}
     ${GFLAGS_INCLUDE_DIR}
+    $ENV{HOME}/argparse/include
 )
 
 add_library(openpose_ros SHARED src/openpose_ros.cpp )
 add_executable(openpose_ros_demo src/openpose_ros_demo.cpp )
 
 target_link_libraries( openpose_ros ${catkin_LIBRARIES} ${OpenCV_LIBS} ${OpenPose_LIBS} stdc++fs gflags )
-target_link_libraries( openpose_ros_demo ${catkin_LIBRARIES} ${OpenCV_LIBS} ${OpenPose_LIBS} openpose_ros gflags)
+target_link_libraries( openpose_ros_demo ${catkin_LIBRARIES} ${OpenCV_LIBS} ${OpenPose_LIBS} stdc++fs openpose_ros gflags)
 
 install(TARGETS openpose_ros
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
@@ -53,3 +55,6 @@ install(TARGETS openpose_ros
 
 
 add_compile_options(${GTK3_CFLAGS_OTHER})
+
+set_target_properties( openpose_ros	PROPERTIES CXX_STANDARD 17 )
+set_target_properties( openpose_ros_demo	PROPERTIES CXX_STANDARD 17 )

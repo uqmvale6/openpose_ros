@@ -8,12 +8,17 @@ include(CMakePackageConfigHelpers)
 set(OpenPose_DIR "/usr/local/lib/OpenPose")
 set(openpose_ros_VERSION 1.0)
 
+set( freenect2_DIR $ENV{HOME}/freenect2/lib/cmake/freenect2)
+
 include(GenerateExportHeader)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_INCLUDE_CURRENT_DIR_IN_INTERFACE ON)
 
+find_package( freenect2 REQUIRED )
+
 find_package(catkin REQUIRED COMPONENTS
+	kinect_streamer_lib
 	std_msgs
 	sensor_msgs
 	image_transport
@@ -32,7 +37,8 @@ catkin_package(
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 include_directories(
 	include
-  ${catkin_INCLUDE_DIRS}
+	${freenect2_INCLUDE_DIR}
+  	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 )
 include_directories(

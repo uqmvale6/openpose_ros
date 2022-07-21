@@ -16,6 +16,8 @@ class OpenPoseROS {
 private:
     cv::Mat cvMat;
     op::Array<float> poseKeypoints;
+    op::Array<float> handKeypointsL;
+    op::Array<float> handKeypointsR;
     
     std::string image_color_topic;
     std::string image_depth_topic;

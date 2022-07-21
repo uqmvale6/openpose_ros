@@ -52,7 +52,6 @@ bool flag_depth = false;
 int last_row = -1;
 int last_col = -1;
 //std::string base_frame = "kinect2_ir_optical_frame";
-std::string base_frame = "base";
 
 void image_color_callback(const sensor_msgs::ImageConstPtr& msg) {
     (cv_bridge::toCvShare(msg, "bgr8")->image).copyTo(img_color);
@@ -93,16 +92,19 @@ bool OpenPoseROS::ok() {
 
 void get_point(const float row, const float col, const float depth, float& x, float& y, float& z) {
 
-    const float cx = 256.7421875; //ir_params.cx;
-    const float cy = 203.66299438476562; //ir_params.cy;
-    const float fx = 1 / 366.2200012207031; //1 / ir_params.fx;
-    const float fy = 1 / 366.2200012207031; //1 / ir_params.fy;
-
+    //const float cx = 256.7421875; //ir_params.cx;
+    //const float cy = 203.66299438476562; //ir_params.cy;
+    //const float fx = 1 / 366.2200012207031; //1 / ir_params.fx;
+    //const float fy = 1 / 366.2200012207031; //1 / ir_params.fy;
+    const float cx = 256.45736;
+    const float cy = 206.2818;
+    const float fx = 1 / 370.39367;
+    const float fy = 1 / 370.40775;
     const float depth_val = depth / 1000.0f;
 
     if (!isnan(depth_val) && depth_val > 0.001) {
 
-        x = -(512-col + 0.5 - cx) * fx * depth_val;
+        x = (512 - col + 0.5 - cx) * fx * depth_val;
         y = (row + 0.5 - cy) * fy * depth_val;
         z = depth_val;
     } else {
@@ -157,7 +159,13 @@ void OpenPoseROS::loop() {
 
     cvMat = OP_OP2CVCONSTMAT(datumProcessed->at(0)->cvOutputData);
     poseKeypoints = datumProcessed->at(0)->poseKeypoints;
+    handKeypointsL = datumProcessed->at(0)->handKeypoints[0];
+    handKeypointsR = datumProcessed->at(0)->handKeypoints[1];
 
+    const auto numberLHandsDetected = handKeypointsL.getSize(0);
+    const auto numberLHandParts = handKeypointsL.getSize(1);
+    const auto numberRHandsDetected = handKeypointsR.getSize(0);
+    const auto numberRHandParts = handKeypointsR.getSize(1);
 
     float row_arr[8];
     float col_arr[8];
@@ -168,6 +176,18 @@ void OpenPoseROS::loop() {
 
     const auto numberPeopleDetected = poseKeypoints.getSize(0);
     const auto numberBodyParts = poseKeypoints.getSize(1);
+    std::string base_frame = std::string("frame_color_") + serial;
+    /*
+    if (numberLHandsDetected > 0 && numberLHandParts > 0) {
+        std::cout << "Left hand:" << std::endl;
+        for (size_t idx = 0; idx < numberLHandParts; idx++) {
+            std::cout << "x[" << idx << "] = " << handKeypointsL[{0, idx, 0}] << std::endl;
+            std::cout << "y[" << idx << "] = " << handKeypointsL[{0, idx, 1}] << std::endl;
+            std::cout << "c[" << idx << "] = " << handKeypointsL[{0, idx, 2}] << std::endl;
+        }
+        
+    }
+    */
     if (numberPeopleDetected > 0 && numberBodyParts > 0) {
         for (int i = 0; i <= 7; i++) {
             row_arr[i] = poseKeypoints[{0, i, 1}];
@@ -196,7 +216,7 @@ void OpenPoseROS::loop() {
         p_head.y = y_arr[HEAD];
         p_head.z = z_arr[HEAD];
         geometry_msgs::PointStamped ps_head;
-        ps_head.header.frame_id = "kinect2_ir_optical_frame";
+        ps_head.header.frame_id = base_frame;
         ps_head.header.stamp = time_ros;
         ps_head.point = p_head;
         if (ps_head.point.x != 0 || ps_head.point.y != 0 || ps_head.point.z != 0) {
@@ -307,9 +327,9 @@ void OpenPoseROS::start() {
 void OpenPoseROS::init() {
     
     const auto outputSize = op::flagsToPoint(op::String(FLAGS_output_resolution), "-1x-1");
-    const auto netInputSize = op::flagsToPoint(op::String("-1x320"), "-1x320");
-    const auto faceNetInputSize = op::flagsToPoint(op::String(FLAGS_face_net_resolution), "368x368 (multiples of 16)");
-    const auto handNetInputSize = op::flagsToPoint(op::String(FLAGS_hand_net_resolution), "368x368 (multiples of 16)");
+    const auto netInputSize = op::flagsToPoint(op::String("-1x368"), "-1x320");
+    const auto faceNetInputSize = op::flagsToPoint(op::String("240x240"), "240x240");
+    const auto handNetInputSize = op::flagsToPoint(op::String("240x240"), "240x240");
     const auto poseMode = op::flagsToPoseMode(FLAGS_body);
     const auto poseModel = op::flagsToPoseModel(op::String(FLAGS_model_pose));
     
@@ -350,6 +370,12 @@ void OpenPoseROS::init() {
         enableGoogleLogging
     };
     opWrapper.configure(wrapperStructPose);
+    FLAGS_hand = false;
+    const op::WrapperStructHand wrapperStructHand{
+        FLAGS_hand, handDetector, handNetInputSize, FLAGS_hand_scale_number, (float)FLAGS_hand_scale_range,
+        op::flagsToRenderMode(FLAGS_hand_render, multipleView, FLAGS_render_pose), (float)FLAGS_hand_alpha_pose,
+        (float)FLAGS_hand_alpha_heatmap, (float)FLAGS_hand_render_threshold};
+    opWrapper.configure(wrapperStructHand);
     ros::NodeHandle nh_pointstamped_head = ros::NodeHandle();
     
     ros::NodeHandle nh_pointstamped_wrist_l = ros::NodeHandle();

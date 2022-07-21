@@ -313,6 +313,14 @@ void OpenPoseROS::loop() {
         }
 
     }
+
+    auto timestamp = std::chrono::high_resolution_clock::now();
+    frame_time_end = timestamp;
+    int frame_period = std::chrono::duration_cast<std::chrono::milliseconds>(frame_time_end - frame_time_start).count();
+    frame_time_start = frame_time_end;
+    double current_frame_rate = 1000.0 / (double)frame_period;
+    printf("Frame Rate: %f FPS\n\r");
+
     cv::imshow("OpenPose", cvMat);
     char c = cv::waitKey(1);
     flag_color = false;
@@ -417,5 +425,6 @@ void OpenPoseROS::init() {
     pub_pointstamped_chest = nh_pointstamped_chest.advertise<geometry_msgs::PointStamped>("mrn_vision/openpose/body/chest", 1);
 
     img_draw = cv::Mat::zeros(cv::Size(512, 424), CV_8UC3);
+    frame_time_start = std::chrono::high_resolution_clock::now();
 
 }

@@ -18,6 +18,9 @@ private:
     op::Array<float> poseKeypoints;
     op::Array<float> handKeypointsL;
     op::Array<float> handKeypointsR;
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> frame_time_start;
+    std::chrono::time_point<std::chrono::high_resolution_clock> frame_time_end;
     
     std::string image_color_topic;
     std::string image_depth_topic;
